@@ -30,9 +30,10 @@ double PrevGyroX, PrevGyroY, PrevGyroZ, IntGyroX, IntGyroY, RADGyroX, RADGyroY, 
 double m4, m5, m6, m7, m8, m9, PrevGyX, PrevGyY, PrevGyZ, RawGyX, RawGyY, GyAngleX, GyAngleY, GyAngleZ, GyRawX, GyRawY, GyRawZ;
 double Ax, Ay;
 double OrientationZ, OrientationY, OrientationX;
+
 OrientationZ = 1;
 OrientationY = 0;
-OrientationZ = 0;
+OrientationX = 0;
 
 //Angle of the Rocket on the launch pad which is pointing upwards
 int Stable_AngleY = 0;//servoY
@@ -47,7 +48,7 @@ int servoYstart = servoY_offs;
 int servoXstart = servoX_offs;
 
 //The amount the servo moves/actuates in the starting function
-int servo_movementamount = 30;
+int servo_movementamount = 12;
 
 //Ratio Between Servo & TVC Mount
 float servoX_ratio = 5;
