@@ -42,11 +42,11 @@ int servoXstart = servoX_offs;
 int servoYstart = servoY_offs;
 
 //The amount the servo moves/actuates in the starting function
-int servo_movementamount = 20;
+int servo_movementamount = 30;
 
 //Ratio Between Servo & TVC Mount
-float servoX_ratio = 6;
-float servoY_ratio = 6;
+float servoX_ratio = 5;
+float servoY_ratio = 5;
 
 double OrientationX = 0;
 double OrientationY = 0;
@@ -54,15 +54,15 @@ double OrientationZ = 1;
 double Ax;
 double Ay;
 
-int LED_RED = 2;    // LED connected to digital pin 9
-int LED_BLUE = 5;    // LED connected to digital pin 9
-int LED_GREEN = 6;    // LED connected to digital pin 9
+int LED_RED = 2;    
+int LED_BLUE = 5;    
+int LED_GREEN = 6;    
 
 int BUZZ = 21;
 int teensyLED = 13;
 
-Servo servoX;
 Servo servoY;
+Servo servoX;
 Servo para;
 
 double dt, currentTime, previousTime;
@@ -84,13 +84,13 @@ float pidY_d = 0;
 
 
 //PID Gains
-double kp = 1.9;//0.09
-double ki = 0.01;//0.03
-double kd = 0.0275;//0.0275
+double kp = 1.9;
+double ki = 0.01;
+double kd = 0.0275;
 
 int mode;
 
-//Launch Site Altitude in Meters(ASL)
+
 float launchalt;
 int a=1;
 
@@ -226,38 +226,37 @@ servoY.write(pwmY);
 }
 
 void starting_sequence() {
-  tone(BUZZ, 1050, 800);
-  para.write(0);
+  tone(BUZZ, 950, 600);
+  para.write(0); // Locks the parachute pay into position
+  digitalWrite(LED_GREEN, HIGH);
+  servoX.write(servoYstart);
+  servoY.write(servoXstart);
+  delay(700);
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_RED, HIGH);
+  servoX.write(servoYstart + servo_movementamount);
+  delay(500);
+  servoY.write(servoXstart + servo_movementamount);
+  delay(500);
+  digitalWrite(LED_RED, LOW);
   digitalWrite(LED_BLUE, HIGH);
-  servoX.write(servoXstart);
-  servoY.write(servoYstart);
+  servoX.write(servoYstart);
+  delay(500);
+  servoY.write(servoXstart);
   delay(500);
   digitalWrite(LED_BLUE, LOW);
   digitalWrite(LED_GREEN, HIGH);
-  servoX.write(servoXstart + servo_movementamount);
+  tone(BUZZ, 900, 200);
+  servoX.write(servoYstart - servo_movementamount);
   delay(200);
-  servoY.write(servoYstart + servo_movementamount);
-  digitalWrite(teensyLED, HIGH);
+  tone(BUZZ, 1050, 250);
+  servoY.write(servoXstart - servo_movementamount);
   delay(200);
-  digitalWrite(LED_GREEN, LOW);
-  digitalWrite(LED_RED, HIGH);
-  servoX.write(servoXstart);
-  delay(200);
-  servoY.write(servoYstart);
-  delay(200);
-  digitalWrite(LED_RED, LOW);
-  digitalWrite(LED_BLUE, HIGH);
-  tone(BUZZ, 1100, 300);
-  servoX.write(servoXstart - servo_movementamount);
-  delay(200);
-  tone(BUZZ, 1150, 250);
-  servoY.write(servoYstart - servo_movementamount);
-  delay(200);
-  tone(BUZZ, 1200, 200);
-  servoX.write(servoXstart);
-  delay(200);
-  servoY.write(servoYstart);
+  tone(BUZZ, 1400, 300);
+  servoX.write(servoYstart);
   delay(500);
+  servoY.write(servoXstart);
+  delay(600);
   
   
   
@@ -270,7 +269,7 @@ void launchdetection() {
   }
   if (mode == 1) {
   gyro.readSensor();
-  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_BLUE, HIGH);
   abortsequence();
   sdcardwrite();
@@ -304,55 +303,55 @@ if (!SD.begin(chipSelect)) {
 }
 
 void sdcardwrite () {
-String datastring = "";
+String flightdatastr = "";
 
- datastring += "Pitch,"; 
- datastring += String(Ax);
- datastring += ",";
+ flightdatastr += "Pitch,"; 
+ flightdatastr += String(Ax);
+ flightdatastr += ",";
 
- datastring += "Yaw,";
- datastring += String(Ay);
- datastring += ",";
+flightdatastr += "Yaw,";
+flightdatastr += String(Ay);
+flightdatastr += ",";
  
- datastring += "System_State,";
- datastring += String(mode);
- datastring += ",";
+flightdatastr += "System_State,";
+flightdatastr += String(mode);
+flightdatastr += ",";
  
- datastring += "Z_Axis_Accel,";
- datastring += String(accel.getAccelX_mss());
- datastring += ",";
+flightdatastr += "Z_Axis_Accel,";
+flightdatastr += String(accel.getAccelX_mss());
+flightdatastr += ",";
 
- datastring += "Time,";
- datastring += String(millis());
- datastring += ",";
+ flightdatastr += "Time,";
+ flightdatastr += String(millis());
+ flightdatastr += ",";
 
- datastring += "Altitude,";
- datastring += String(altitude);
- datastring += ",";
+ flightdatastr += "Altitude,";
+ flightdatastr += String(altitude);
+ flightdatastr += ",";
  
- datastring += "Launch Altitude,";
- datastring += String(launchalt);
- datastring += ",";
+ flightdatastr += "Launch Altitude,";
+ flightdatastr += String(launchalt);
+ flightdatastr += ",";
 
- datastring += "PIDX,";
- datastring += String(PIDX);
- datastring += ",";
+ flightdatastr += "PIDX,";
+ flightdatastr += String(PIDX);
+ flightdatastr += ",";
 
- datastring += "PIDY,";
- datastring += String(PIDY);
- datastring += ",";
+ flightdatastr += "PIDY,";
+ flightdatastr += String(PIDY);
+ flightdatastr += ",";
 
 
 
  
-  File dataFile = SD.open("flightlog1.txt", FILE_WRITE);
+  File dataLoggingFile = SD.open("flightlog1.txt", FILE_WRITE);
   
-  if (dataFile) {
+  if (dataLoggingFile) {
     if(currentTime - prevLog > logInterval){
     prevLog = currentTime;
-    dataFile.println(datastring);
+    dataLoggingFile.println(flightdatastr);
     }
-    dataFile.close();
+    dataLoggingFile.close();
    
   }
   }
@@ -360,9 +359,8 @@ String datastring = "";
 void burnoutdetction () { 
 if (mode == 1 && accel.getAccelX_mss() <= 2) {
   mode++;
-  digitalWrite(teensyLED, LOW);
   digitalWrite(LED_RED, HIGH);
-  tone(BUZZ, 1200, 200);
+  tone(BUZZ, 1300, 300);
   Serial.println("Burnout of engine Detected");
 }
 
@@ -405,30 +403,28 @@ void launchchecks() {
   }
  
 
-  float totalAccelVec = sqrt(sq(accel.getAccelZ_mss()) + sq(accel.getAccelY_mss()) + sq(accel.getAccelX_mss()));
-  Ax = -asin(accel.getAccelZ_mss() / totalAccelVec);
-  Ay = asin(accel.getAccelY_mss() / totalAccelVec);//for giving the initial orientation indication
+  float totAcVec = sqrt(sq(accel.getAccelZ_mss()) + sq(accel.getAccelY_mss()) + sq(accel.getAccelX_mss()));
+  Ax = -asin(accel.getAccelZ_mss() / totAcVec);
+  Ay = asin(accel.getAccelY_mss() / totAcVec);  // THIS GIVES THE INTITIAL ORIENTATION ESTIMATION OF THE ROCKET
 
 
-  delay(500);
-  digitalWrite(LED_GREEN, HIGH);
-  digitalWrite(LED_RED, HIGH);
+  delay(700);
   digitalWrite(LED_BLUE, LOW);
+  digitalWrite(LED_GREEN, HIGH);
   
 }
 void abortsequence () {
   if (mode == 1 && (Ax > 45 || Ax < -45) || (Ay > 45 || Ay < -45)){ 
-    Serial.println("Abort Detected");
-    digitalWrite(LED_BLUE, LOW);
+    Serial.println("Abort Sequence Detected");
     digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_BLUE, LOW);
     digitalWrite(LED_RED, HIGH);
-    digitalWrite(teensyLED, LOW);
-    tone(BUZZ, 1200, 400);
+    tone(BUZZ, 1300, 500);
     mode++;
     mode++;
     mode++;
     mode++; //Immediate Shift to State 5
-    Serial.print("Abort Sequence");
+    Serial.print("Abort Sequence Started");
     para.write(100);
   }
 }
