@@ -28,18 +28,23 @@ BMP280_DEV bmp280;
 double PIDX, PIDY, errorX, errorY,prev_errX , prev_errY, pwmX, pwmY, previouslog, OreX, OreY, OreZ;
 double PrevGyroX, PrevGyroY, PrevGyroZ, IntGyroX, IntGyroY, RADGyroX, RADGyroY, RADGyroZ, RawGyZ, DiffGyroX, DiffGyroY, DiffGyroZ, m1, m2, m3;
 double m4, m5, m6, m7, m8, m9, PrevGyX, PrevGyY, PrevGyZ, RawGyX, RawGyY, GyAngleX, GyAngleY, GyAngleZ, GyRawX, GyRawY, GyRawZ;
+double Ax, Ay;
+double OrientationZ, OrientationY, OrientationX;
+OrientationZ = 1;
+OrientationY = 0;
+OrientationZ = 0;
 
-//Upright Angle of the Rocket
-int Stable_AngleX = 0;//servoY
-int Stable_AngleY = 0;//servoX
+//Angle of the Rocket on the launch pad which is pointing upwards
+int Stable_AngleY = 0;//servoY
+int Stable_AngleX = 0;//servoX
 
 //Servo Offsets for centering the TVC Mount 
 int servoY_offs = 65;
 int servoX_offs = 125;
 
-//Position of servos through the startup function
-int servoXstart = servoX_offs;
+//Position of servos in the StartupSequence 
 int servoYstart = servoY_offs;
+int servoXstart = servoX_offs;
 
 //The amount the servo moves/actuates in the starting function
 int servo_movementamount = 30;
@@ -48,18 +53,11 @@ int servo_movementamount = 30;
 float servoX_ratio = 5;
 float servoY_ratio = 5;
 
-double OrientationX = 0;
-double OrientationY = 0;
-double OrientationZ = 1;
-double Ax;
-double Ay;
-
-int LED_RED = 2;    
-int LED_BLUE = 5;    
-int LED_GREEN = 6;    
 
 int BUZZ = 21;
-int teensyLED = 13;
+int LED_GREEN = 6;
+int LED_BLUE = 5;
+int LED_RED = 2;        
 
 Servo servoY;
 Servo servoX;
@@ -70,26 +68,27 @@ double dt, currentTime, previousTime;
 //SD CARD CS
 const int chipSelect = BUILTIN_SDCARD;
 
-//"P" Constants
-float pidX_p = 0;
-float pidY_p = 0;
-
-//"I" Constants
-float pidY_i = 0;
-float pidX_i = 0;
-
-//"D" Constants
-float pidX_d = 0;
-float pidY_d = 0;
-
+float pidY_p, pidY_i, pidY_d;
+float pidX_p, pidX_i, pidX_d;
 
 //PID Gains
-double kp = 1.9;
 double ki = 0.01;
-double kd = 0.0275;
+double kd= 0.0275;
+double kp = 1.9;
+ 
+// P-Constants
+pidY_p = 0;
+pidX_p = 0;
+
+// I-Constants
+pidY_i = 0;
+pidX_i = 0;
+
+// D-Constants
+pidY_d = 0;
+pidX_d = 0;
 
 int mode;
-
 
 float launchalt;
 int a=1;
@@ -102,17 +101,16 @@ void setup(){
  
   Serial.begin(9600);
   Wire.begin();
-  servoX.attach(29);
-  servoY.attach(28);// was 30 because of 4.1 its 28 
-  para.attach(7);
-  bmp280.begin(BMP280_I2C_ALT_ADDR);              
-  bmp280.startNormalConversion();
-  
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(BUZZ, OUTPUT);
- 
+  servoY.attach(28);// was 30 because of 4.1 its 28 
+  servoX.attach(29);
+  para.attach(7);
+  bmp280.begin(BMP280_I2C_ALT_ADDR);              
+  bmp280.startNormalConversion();
+  
   pinMode(teensyLED, OUTPUT);
   starting_sequence();
   sdcardstart();
@@ -120,7 +118,6 @@ void setup(){
   a=1;
 }
 void loop() {
-  //Defining Time Variables
   
   if (a==1)
   {
@@ -141,31 +138,33 @@ void loop() {
 }
 
 void orientation_computation() {
-  //Change Variable so its easier to refrence later on
+  
+  GyRawZ = (gyro.getGyroX_rads());
   GyRawX = (gyro.getGyroY_rads());
   GyRawY = (gyro.getGyroZ_rads());
-  GyRawZ = (gyro.getGyroX_rads());
+  
 
-  //Integrate over time to get Local Orientation
+  //Integrating with time gives us the local orientation estimates
+  GyAngleZ += GyRawZ * dt; 
   GyAngleX += GyRawX * dt;
   GyAngleY += GyRawY * dt;
-  GyAngleZ += GyRawZ * dt;
-
+  
+  PrevGyroZ = RADGyroZ;
   PrevGyroX = RADGyroX;
   PrevGyroY = RADGyroY;
-  PrevGyroZ = RADGyroZ;
   
+  RADGyroZ = GyAngleZ;
   RADGyroX = GyAngleX;
   RADGyroY = GyAngleY;
-  RADGyroZ = GyAngleZ;
   
+  DiffGyroZ = (RADGyroZ - PrevGyroZ);
   DiffGyroX = (RADGyroX - PrevGyroX);
   DiffGyroY = (RADGyroY - PrevGyroY);
-  DiffGyroZ = (RADGyroZ - PrevGyroZ);
-
+  
+  OreZ = OrientationZ;
   OreX = OrientationX;
   OreY = OrientationY;
-  OreZ = OrientationZ;
+  
   
  //X Matrices
   m1 = (cos(DiffGyroZ) * cos(DiffGyroY));
@@ -182,82 +181,90 @@ void orientation_computation() {
   m8 = cos(DiffGyroY) * sin(DiffGyroX);
   m9 = cos(DiffGyroY) * cos(DiffGyroX);
 
+
+
+ OrientationZ = ((OreX * m7)) + ((OreY * m8)) + ((OreZ * m9));
  OrientationX = ((OreX * m1)) + ((OreY * m2)) + ((OreZ * m3));
  OrientationY = ((OreX * m4)) + ((OreY * m5)) + ((OreZ * m6));
- OrientationZ = ((OreX * m7)) + ((OreY * m8)) + ((OreZ * m9));
-
-Ax = asin(OrientationX) * (-180 / PI);//orienX actually
+ 
 Ay = asin(OrientationY) * (180 / PI);//orienY actually
+Ax = asin(OrientationX) * (-180 / PI);//orienX actually
 
 pidcontroller();
 
 }
 
 void pidcontroller () {
-prev_errX = errorX;
 prev_errY = errorY; 
+prev_errX = errorX;
 
-errorX = Ax - Stable_AngleX;
 errorY = Ay - Stable_AngleY;
+errorX = Ax - Stable_AngleX;
 
-//Defining "P" 
-pidX_p = kp * errorX;
+
+//"P" 
 pidY_p = kp * errorY;
+pidX_p = kp * errorX;
 
-//Defining "D"
-pidX_d = kd*((errorX - prev_errX)/dt);
-pidY_d = kd*((errorY - prev_errY)/dt);
-
-//Defining "I"
-pidX_i = ki * (pidX_i + errorX * dt);
+// "I"
 pidY_i = ki * (pidY_i + errorY * dt);
+pidX_i = ki * (pidX_i + errorX * dt);
 
-//Adding it all up
-PIDX = pidX_p + pidX_i + pidX_d;
+//"D"
+pidY_d = kd*((errorY - prev_errY)/dt);
+pidX_d = kd*((errorX - prev_errX)/dt);
+
+
+
+//Summing up PID values
 PIDY = pidY_p + pidY_i + pidY_d;
- 
+PIDX = pidX_p + pidX_i + pidX_d;
+
 pwmY = ((PIDY * servoY_ratio) + servoY_offs);
 pwmX = ((PIDX * servoX_ratio) + servoX_offs); 
 
-//Servo outputs
-servoX.write(pwmX);
+ 
+//Outputs To be sent to the TVC Actuator/Servo  
 servoY.write(pwmY);
+servoX.write(pwmX);
+
 
 }
 
 void starting_sequence() {
-  tone(BUZZ, 950, 600);
+  
   para.write(0); // Locks the parachute pay into position
   digitalWrite(LED_GREEN, HIGH);
-  servoX.write(servoYstart);
   servoY.write(servoXstart);
+  servoX.write(servoYstart);
   delay(700);
   digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_RED, HIGH);
-  servoX.write(servoYstart + servo_movementamount);
-  delay(500);
+  tone(BUZZ, 1050, 250);
   servoY.write(servoXstart + servo_movementamount);
+  delay(500);
+  servoX.write(servoYstart + servo_movementamount);
   delay(500);
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_BLUE, HIGH);
-  servoX.write(servoYstart);
-  delay(500);
   servoY.write(servoXstart);
+  delay(500);
+  servoX.write(servoYstart);
   delay(500);
   digitalWrite(LED_BLUE, LOW);
   digitalWrite(LED_GREEN, HIGH);
-  tone(BUZZ, 900, 200);
-  servoX.write(servoYstart - servo_movementamount);
-  delay(200);
-  tone(BUZZ, 1050, 250);
   servoY.write(servoXstart - servo_movementamount);
+  tone(BUZZ, 900, 200);
   delay(200);
+  servoX.write(servoYstart - servo_movementamount);
+  tone(BUZZ, 1050, 250);
+  delay(200);
+  servoY.write(servoXstart);
+  delay(500);
   tone(BUZZ, 1400, 300);
   servoX.write(servoYstart);
-  delay(500);
-  servoY.write(servoXstart);
   delay(600);
-  
+  Serial.print("Launch sequence Complete") ;
   
   
  }
@@ -269,6 +276,7 @@ void launchdetection() {
   }
   if (mode == 1) {
   gyro.readSensor();
+  //Reads the gyro only after upward acceleration is detected
   digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_BLUE, HIGH);
   abortsequence();
